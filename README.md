@@ -31,6 +31,7 @@ python genetree_builder/ensembl_dataset_finder.py --interactive
 python genetree_builder/ensembl_dataset_finder.py species_list.txt --output my_results.csv
 ```
 ### EXAMPLE OUTPUT:
+
 Read 1 species from test-metazoa.txt
 
 Searching for Daphnia pulex across Ensembl APIs...
@@ -47,13 +48,10 @@ Found 3 potential datasets for Daphnia pulex:
 Results saved to ensembl_datasets_20250723_085501.csv
 
 Results Summary:
-====================================================================================================
 Species                        API             Dataset                        Match Score Virtual Schema
-====================================================================================================
 Daphnia pulex                  Metazoa         dpgca021134715v1rs_eg_gene     60.8       metazoa_mart
 Daphnia pulex                  Protists        pultimum_eg_gene               41.6       protists_mart
 Daphnia pulex                  Fungi           mlaricipopulina_eg_gene        39.6       fungi_mart
-----------------------------------------------------------------------------------------------------
 
 ### list_metazoa_datasets.py: Lists all datasets in the metazoa BIOMART API.
 __________________________________________________________
@@ -62,6 +60,7 @@ python genetree_builder/list_metazoa_datasets.py
 ```
 
 ### Example Output:
+
 Fetching BioMart registry from Ensembl Metazoa...
 Found mart: Ensembl Metazoa Genes 61 (name: metazoa_mart, schema: metazoa_mart)
 Found mart: Ensembl Metazoa Variations 61 (name: metazoa_variations, schema: metazoa_mart)

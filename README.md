@@ -4,6 +4,16 @@
 These scripts communicate with the ENSEMBL API to pull gene trees using a list of species names
 
 ## Input file format
+Strongylocentrotus purpuratus
+Daphnia pulex
+Octopus bimaculoides
+Lingula anatina
+Aplysia californica
+Crassostrea gigas
+Nematostella vectensis
+Clytia hemisphaerica
+Mnemiopsis leidyi
+Amphimedon queenslandica
 
 ## Usage
 ```

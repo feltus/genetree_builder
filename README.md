@@ -1,4 +1,4 @@
-# gentree_builder
+# genetree_builder
 
 ## Background
 These scripts communicate with the ENSEMBL BIOMART APIs (Ensembl, Metazoa, Plants, Fungi, Protists, Bacteria) to pull gene trees using a list of species names.

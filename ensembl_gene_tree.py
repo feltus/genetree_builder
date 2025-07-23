@@ -601,7 +601,7 @@ def count_species_in_tree(tree_node):
     traverse_tree(tree_node)
     return len(species_set)
 
-    def process_gene_batch_for_species(genes, output_dir, total_genes, species_name, checkpoint_file, base_url):
+def process_gene_batch_for_species(genes, output_dir, total_genes, species_name, checkpoint_file, base_url):
     """
     Process a batch of genes for gene tree information
     """

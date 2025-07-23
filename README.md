@@ -1,7 +1,7 @@
 # gentree_builder
 
 ## Background
-These scripts communicate with the EMSEMBL API to pull gene trees using a list of species names
+These scripts communicate with the ENSEMBL API to pull gene trees using a list of species names
 
 ## Input file format
 

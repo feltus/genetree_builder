@@ -392,21 +392,12 @@ def save_genes_to_csv(genes, species_name):
         print(f"Error saving genes to CSV: {e}")
         return None
 
-def convert_to_ensembl_format(scientific_name):
+def convert_to_ensembl_format(species_name):
     """
-    Convert 'Genus species' format to Ensembl API format (e.g., 'Anolis carolinensis' -> 'anolis_carolinensis')
+    Convert species name to Ensembl API format
     """
-    try:
-        parts = scientific_name.strip().split()
-        if len(parts) < 2:
-            raise ValueError(f"Invalid scientific name format: {scientific_name}. Expected 'Genus species'")
-        
-        # Convert to lowercase and join with underscore
-        ensembl_format = "_".join([part.lower() for part in parts[:2]])
-        return ensembl_format
-    except Exception as e:
-        print(f"Error converting '{scientific_name}' to Ensembl format: {e}")
-        return None
+    # Convert "Drosophila melanogaster" to "drosophila_melanogaster"
+    return species_name.lower().replace(' ', '_')
 
 def read_species_from_file(filename):
     """
@@ -466,142 +457,198 @@ def fetch_gene_info(gene_id, base_url):
 
 # Function to fetch gene tree information from Ensembl with timeout
 @timeout_decorator.timeout(300)  # 5 minutes timeout
-def fetch_gene_tree_info(gene_id, gene_symbol, species_ensembl_format, base_url):
-    """Fetch gene tree information with robust error handling and fallbacks"""
-    logging.info(f"Attempting to fetch gene tree for gene: {gene_id}")
+def fetch_gene_tree_info(gene_id, gene_symbol, species_name, base_url, timeout=30):
+    """
+    FIXED: Fetch gene tree information for a specific gene using the correct API endpoint
+    """
+    # Convert species name to Ensembl format for API calls
+    species_ensembl_format = convert_to_ensembl_format(species_name)
     
-    # Add headers for better API response
+    # For Metazoa API, we need to add compara parameter
+    if 'ensemblgenomes.org' in base_url:
+        compara_param = 'compara=metazoa'
+    else:
+        compara_param = ''
+    
+    # Primary endpoint: gene tree by member ID
+    primary_url = f"{base_url}/genetree/member/id/{species_ensembl_format}/{gene_id}"
+    if compara_param:
+        primary_url += f"?{compara_param}"
+    
     headers = {
-        "Content-Type": "application/json",
-        "Accept": "application/json"
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
     }
     
-    # Try multiple approaches in sequence
-    approaches = [
-        # Approach 1: Try standard gene ID endpoint
-        {
-            "url": f"{base_url}/genetree/member/id/{gene_id}",
-            "desc": "standard gene ID"
-        },
-        # Approach 2: Try with gene symbol if not Unknown
-        {
-            "url": f"{base_url}/genetree/member/symbol/{species_ensembl_format}/{gene_symbol}" if gene_symbol and gene_symbol.lower() != "unknown" else None,
-            "desc": "gene symbol"
-        },
-        # Approach 3: Try homology endpoint to find gene tree ID
-        {
-            "url": f"{base_url}/homology/id/{gene_id}",
-            "desc": "homology endpoint"
-        },
-        # Approach 4: Try lookup with expanded info
-        {
-            "url": f"{base_url}/lookup/id/{gene_id}?expand=1",
-            "desc": "expanded lookup"
-        }
-    ]
-    
-    # For storing any genetree ID we find through alternative means
-    genetree_id = None
-    
-    for approach in approaches:
-        if not approach["url"]:
-            continue
-            
-        url = f"{approach['url']}?content-type=application/json"
-        desc = approach["desc"]
+    try:
+        print(f"Fetching gene tree for {gene_id} from {primary_url}")
         
-        try:
-            logging.debug(f"Trying {desc} approach: {url}")
-            response = requests.get(url, headers=headers, verify=False, timeout=60)
-            
-            # Log response details for debugging
-            logging.debug(f"{desc} approach status code: {response.status_code}")
-            
-            # Skip empty responses
-            if not response.text.strip():
-                logging.warning(f"Empty response from {desc} approach")
-                continue
-                
-            # Try to parse the JSON response
+        # Try primary endpoint first
+        response = requests.get(primary_url, headers=headers, timeout=timeout)
+        
+        if response.status_code == 200:
             try:
-                data = response.json()
-                
-                # Check if this is a successful response with useful data
-                if response.status_code == 200:
-                    # If this is the homology endpoint, extract gene tree ID
-                    if "homology endpoint" in desc and data and "data" in data:
-                        for homolog in data.get("data", []):
-                            if "genetree_id" in homolog:
-                                genetree_id = homolog["genetree_id"]
-                                logging.info(f"Found genetree ID: {genetree_id}")
-                                break
-                    # If this is the expanded lookup endpoint, look for tree ID
-                    elif "expanded lookup" in desc and genetree_id is None:
-                        if data.get("compara_gene_trees"):
-                            genetree_id = data["compara_gene_trees"][0] if data["compara_gene_trees"] else None
-                            logging.info(f"Found genetree ID from lookup: {genetree_id}")
-                    # For direct gene tree response, return it
-                    else:
-                        if "tree" in data or (isinstance(data, list) and len(data) > 0 and "tree" in data[0]):
-                            logging.info(f"Successfully retrieved gene tree using {desc} approach")
-                            return data
-                            
-            except json.JSONDecodeError as e:
-                logging.warning(f"Invalid JSON from {desc} approach: {e}")
-                logging.debug(f"Response text: {response.text[:200]}...")
-                continue
-                
-        except (requests.RequestException, timeout_decorator.TimeoutError) as e:
-            logging.warning(f"Request error in {desc} approach: {e}")
-            continue
-    
-    # If we found a genetree ID, try to fetch it directly
-    if genetree_id:
-        try:
-            tree_url = f"{base_url}/genetree/id/{genetree_id}?content-type=application/json"
-            logging.info(f"Fetching gene tree using ID: {tree_url}")
-            tree_response = requests.get(tree_url, headers=headers, verify=False, timeout=60)
+                gene_tree_data = response.json()
+                if gene_tree_data and 'tree' in gene_tree_data:
+                    return gene_tree_data
+                else:
+                    print(f"No gene tree data found for {gene_id}")
+                    return None
+            except json.JSONDecodeError:
+                print(f"Invalid JSON response for {gene_id}")
+                return None
+        elif response.status_code == 400:
+            print(f"Bad request for {gene_id} - possibly invalid gene ID format")
+            return None
+        elif response.status_code == 404:
+            print(f"Gene {gene_id} not found in gene trees")
+            return None
+        else:
+            print(f"API returned status code {response.status_code} for {gene_id}")
+            return None
             
-            if tree_response.status_code == 200 and tree_response.text.strip():
-                try:
-                    tree_data = tree_response.json()
-                    logging.info(f"Successfully retrieved gene tree using ID: {genetree_id}")
-                    return tree_data
-                except json.JSONDecodeError:
-                    logging.error(f"Invalid JSON from genetree ID request")
-        except (requests.RequestException, timeout_decorator.TimeoutError) as e:
-            logging.error(f"Error fetching gene tree by ID: {e}")
-    
-    logging.error(f"Failed to fetch gene tree information for {gene_id} after trying all approaches")
-    return None
+    except requests.exceptions.Timeout:
+        print(f"Timeout fetching gene tree for {gene_id}")
+        return None
+    except requests.exceptions.RequestException as e:
+        print(f"Network error fetching gene tree for {gene_id}: {e}")
+        return None
+    except Exception as e:
+        print(f"Unexpected error fetching gene tree for {gene_id}: {e}")
+        return None
 
 # Function to process gene tree data
-def process_gene_tree_data(gene_tree_info):
-    processed_data = []
-
-    def traverse_tree(node):
-        if 'children' in node:
-            for child in node['children']:
-                traverse_tree(child)
+def process_gene_tree(gene_id, gene_symbol, species_name, base_url, output_dir):
+    """
+    FIXED: Process gene tree information for a single gene
+    """
+    try:
+        gene_tree_info = fetch_gene_tree_info(gene_id, gene_symbol, species_name, base_url)
+        
+        if gene_tree_info:
+            # Save the gene tree data
+            file_identifier = gene_symbol if gene_symbol and gene_symbol.lower() != "unknown" else gene_id
+            output_file = os.path.join(output_dir, f'{file_identifier}_gene_tree.json')
+            
+            with open(output_file, 'w') as f:
+                json.dump(gene_tree_info, f, indent=2)
+            
+            print(f"Gene tree saved to {output_file}")
+            
+            # Also save a summary text file
+            summary_file = os.path.join(output_dir, f'{file_identifier}_gene_tree.txt')
+            with open(summary_file, 'w') as f:
+                f.write(f"Gene Tree Information for {gene_id} ({gene_symbol})\n")
+                f.write(f"Species: {species_name}\n")
+                f.write(f"Tree ID: {gene_tree_info.get('id', 'N/A')}\n")
+                f.write(f"Tree Type: {gene_tree_info.get('type', 'N/A')}\n")
+                
+                if 'tree' in gene_tree_info:
+                    tree_data = gene_tree_info['tree']
+                    f.write(f"Tree Structure: {tree_data.get('newick', 'N/A')}\n")
+                    
+                    # Count species in the tree
+                    if 'children' in tree_data:
+                        species_count = count_species_in_tree(tree_data)
+                        f.write(f"Species count in tree: {species_count}\n")
+            
+            return True
         else:
-            if 'taxonomy' in node:
-                species_name = node['taxonomy'].get('scientific_name', 'N/A')
-                gene_id = node.get('id', 'N/A')
-                gene_name = node.get('gene_member', {}).get('display_name', 'N/A')
-                processed_data.append({
-                    'gene_id': gene_id,
-                    'gene_name': gene_name,
-                    'species': species_name,
-                })
+            # Create a "no tree" file
+            file_identifier = gene_symbol if gene_symbol and gene_symbol.lower() != "unknown" else gene_id
+            output_file = os.path.join(output_dir, f'{file_identifier}_gene_tree.txt')
+            
+            with open(output_file, 'w') as f:
+                f.write(f"No gene tree available for {gene_id} ({gene_symbol})\n")
+                f.write(f"Species: {species_name}\n")
+                f.write(f"This gene may not be included in comparative genomics analyses.\n")
+            
+            print(f"No gene tree available for {gene_id}. Written to {output_file}")
+            return False
+            
+    except Exception as e:
+        print(f"Error processing gene tree for {gene_id}: {e}")
+        # Create error file
+        file_identifier = gene_symbol if gene_symbol and gene_symbol.lower() != "unknown" else gene_id
+        error_file = os.path.join(output_dir, f'{file_identifier}_ERROR.txt')
+        with open(error_file, 'w') as f:
+            f.write(f"Error processing gene tree for {gene_id}: {str(e)}\n")
+        return False
 
-    if isinstance(gene_tree_info, list) and len(gene_tree_info) > 0:
-        if 'tree' in gene_tree_info[0]:
-            traverse_tree(gene_tree_info[0]['tree'])
-    elif isinstance(gene_tree_info, dict) and 'tree' in gene_tree_info:
-        traverse_tree(gene_tree_info['tree'])
+def count_species_in_tree(tree_node):
+    """
+    Recursively count unique species in a gene tree
+    """
+    species_set = set()
+    
+    def traverse_tree(node):
+        if isinstance(node, dict):
+            # Check if this is a leaf node with sequence info
+            if 'sequence' in node:
+                seq_info = node['sequence']
+                if 'name' in seq_info:
+                    # Extract species from sequence name (usually format: SPECIES_GENEID)
+                    seq_name = seq_info['name']
+                    if '_' in seq_name:
+                        species_part = seq_name.split('_')[0]
+                        species_set.add(species_part)
+            
+            # Recursively process children
+            if 'children' in node:
+                for child in node['children']:
+                    traverse_tree(child)
+    
+    traverse_tree(tree_node)
+    return len(species_set)
 
-    return processed_data
+    def process_gene_batch_for_species(genes, output_dir, total_genes, species_name, checkpoint_file, base_url):
+    """
+    Process a batch of genes for gene tree information
+    """
+    global current_gene_number, processed_genes
+    
+    for gene in tqdm(genes, desc="Processing genes"):
+        current_gene_number += 1
+        
+        if gene['gene_id'] in processed_genes:
+            print(f"Skipping already processed gene: {gene['gene_id']}")
+            continue
+        
+        print(f"Processing gene {current_gene_number} of {total_genes}: {gene['gene_id']}")
+        
+        try:
+            success = process_gene_tree(
+                gene['gene_id'], 
+                gene['gene_symbol'], 
+                species_name, 
+                base_url, 
+                output_dir
+            )
+            
+            if success:
+                print(f"Successfully processed {gene['gene_id']}")
+            else:
+                print(f"No gene tree found for {gene['gene_id']}")
+            
+            # Mark as processed regardless of success
+            processed_genes.add(gene['gene_id'])
+            save_checkpoint(processed_genes, checkpoint_file)
+            
+        except Exception as e:
+            print(f"Error processing gene {gene['gene_id']}: {e}")
+            # Create error file
+            file_identifier = gene['gene_symbol'] if gene['gene_symbol'].lower() != "unknown" else gene['gene_id']
+            error_file = os.path.join(output_dir, f'{file_identifier}_ERROR.txt')
+            with open(error_file, 'w') as f:
+                f.write(f"Error processing gene: {str(e)}")
+            
+            # Still mark as processed to avoid infinite loop
+            processed_genes.add(gene['gene_id'])
+            save_checkpoint(processed_genes, checkpoint_file)
 
+        # Add delay to avoid overwhelming the API
+        time.sleep(0.5)
+    
 # Function to save checkpoint for a specific species
 def save_checkpoint(processed_genes, checkpoint_file):
     with open(checkpoint_file, 'w') as f:

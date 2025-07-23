@@ -17,7 +17,7 @@ Mnemiopsis leidyi
 Amphimedon queenslandica
 
 ## Usage
-__________________________________________________________
+
 ### ensembl_dataset_finder.py: Searches Searching for across Ensembl APIs to find the best matching dataset ID.
 __________________________________________________________
 ```
@@ -30,7 +30,7 @@ python genetree_builder/ensembl_dataset_finder.py --interactive
 # Specify output filename
 python genetree_builder/ensembl_dataset_finder.py species_list.txt --output my_results.csv
 ```
-EXAMPLE OUTPUT:
+### EXAMPLE OUTPUT:
 Read 1 species from test-metazoa.txt
 
 Searching for Daphnia pulex across Ensembl APIs...
@@ -55,14 +55,13 @@ Daphnia pulex                  Protists        pultimum_eg_gene               41
 Daphnia pulex                  Fungi           mlaricipopulina_eg_gene        39.6       fungi_mart
 ----------------------------------------------------------------------------------------------------
 
-__________________________________________________________
-
 ### list_metazoa_datasets.py: Lists all datasets in the metazoa BIOMART API.
 __________________________________________________________
 ```
 python genetree_builder/list_metazoa_datasets.py
+```
 
-Example Output:
+### Example Output:
 Fetching BioMart registry from Ensembl Metazoa...
 Found mart: Ensembl Metazoa Genes 61 (name: metazoa_mart, schema: metazoa_mart)
 Found mart: Ensembl Metazoa Variations 61 (name: metazoa_variations, schema: metazoa_mart)
@@ -446,9 +445,9 @@ Found 372 datasets in Ensembl Metazoa:
   zcgca028554725v2rs_eg_gene - Zeugodacus cucurbitae (Melon fly, PBARC_wt_2022May) genes (idZeuCucr1.2)
   znevadensis_eg_gene - Zootermopsis nevadensis (Nevada dampwood termite) genes (ZooNev1.0)
 
-__________________________________________________________
 ### gene_tree_fetcher.py
 __________________________________________________________
+
 ```
 Basic usage:
 
@@ -458,6 +457,7 @@ To force a specific API (bypassing auto-detection):
 
 python genetree_builder/ensembl_gene_tree_v0-6.py species_list.txt --force Metazoa
 ```
+### SLURM implementation
 ```
 #!/bin/bash
 
@@ -471,6 +471,7 @@ python genetree_builder/ensembl_gene_tree_v0-6.py species_list.txt --force Metaz
 cd /scratch/ffeltus/emily_ensembl_20250522/trees 
 python genetree_builder/ensembl_gene_tree.py species_ensembl-metazoa.txt 
 ```
+
 ### EXAMPLE OUTPUT:
 ==================================================
 Processing species: Daphnia pulex
@@ -493,7 +494,6 @@ Starting from gene number: 1
 
 Processing batch 1 of 153
 
-__________________________________________________________
 
 ### DEPRECTATED: fetch_ensembl_genes.py: Fetches gene names from the appropriate BIOMART API. SCRIPT IS MISSING!
 __________________________________________________________

@@ -17,6 +17,57 @@ Amphimedon queenslandica
 
 ## Usage
 ```
+biomart_url = "https://www.ensembl.org/biomart/martservice"
+
+Anole specific to generalizable with metadata support:
+
+obgca001194135v2rs_eg_gene - Octopus bimaculoides (California two-spot octopus, UCB-OBI-ISO-001) genes (ASM119413v2)
+mscalaris_eg_gene - Megaselia scalaris (Coffin fly) genes (Msca1)
+
+Moved Ciona savignyi to ensembl species list
+__________________________________________________________
+ensembl_dataset_finder.py
+__________________________________________________________
+
+# With a file containing species names (one per line)
+python ensembl_dataset_finder.py species_list.txt
+
+# Interactive mode
+python ensembl_dataset_finder.py --interactive
+
+# Specify output filename
+python ensembl_dataset_finder.py species_list.txt --output my_results.csv
+
+__________________________________________________________
+
+fetch_ensembl_genes.py
+__________________________________________________________
+
+# For standard Ensembl
+python fetch_ensembl_genes.py species_list.txt
+
+# For Ensembl Metazoa
+python fetch_ensembl_genes.py species_list.txt --metazoa
+
+# To list available datasets (helpful for troubleshooting)
+python fetch_ensembl_genes.py --list --metazoa
+
+# Interactive mode
+python fetch_ensembl_genes.py --interactive --metazoa
+
+__________________________________________________________
+gene_tree_fetcher.py
+__________________________________________________________
+Basic usage:
+
+python ensembl_gene_tree.py species_list.txt
+
+To force a specific API (bypassing auto-detection):
+
+python ensembl_gene_tree.py species_list.txt --force Metazoa
+```
+
+```
 #!/bin/bash
 
 #SBATCH --job-name=TREES     # Set the job name
@@ -27,5 +78,5 @@ Amphimedon queenslandica
 #SBATCH --time 72:00:00
 
 cd /scratch/ffeltus/emily_ensembl_20250522/trees 
-python ensembl_gene_tree_v0-6.py species_ensembl-metazoa.txt 
+python ensembl_gene_tree.py species_ensembl-metazoa.txt 
 ```
